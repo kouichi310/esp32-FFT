@@ -1,5 +1,6 @@
 #include "arduinoFFT.h"  // FFTライブラリのインクルード
 #include <SPIFFS.h>
+#include <Ticker.h> 
 
 #define SAMPLES 512  // サンプル数（2の累乗である必要があります）
 #define SAMPLING_FREQUENCY 10000  // サンプリング周波数（10kHz）
@@ -15,6 +16,7 @@ double vImag[SAMPLES]; // 虚数部分（FFTではゼロで初期化）
 const int micPin = 34; // マイクのアナログ入力ピン
 
 const char fname[] = "/data1";
+Ticker ticker;
 
 void SPIFFSInit(){
   Serial.println("SPIFFS formatting...");
@@ -31,13 +33,7 @@ void SPIFFSInit(){
  }
 }
 
-void setup() {
-  //SPIFFSInit();
-  Serial.begin(115200);
-  sampling_period_us = round(1000000 * (1.0 / SAMPLING_FREQUENCY));
-}
-
-void loop() {
+void performFFT(){
   // サンプリング
   for (int i = 0; i < SAMPLES; i++) {
     microseconds = micros(); // 現在の時間を取得
@@ -65,6 +61,15 @@ void loop() {
 
   //spiffs_file.println(output);
   //spiffs_file.flush();
+}
 
-  delay(200);  // 次のループまで1秒待機
+void setup() {
+  //SPIFFSInit();
+  Serial.begin(115200);
+  sampling_period_us = round(1000000 * (1.0 / SAMPLING_FREQUENCY));
+  ticker.attach(0.2, performFFT);
+}
+
+void loop() {
+
 }
