@@ -1,9 +1,11 @@
 #include "arduinoFFT.h"  // FFTライブラリのインクルード
+#include <SPIFFS.h>
 
 #define SAMPLES 512  // サンプル数（2の累乗である必要があります）
 #define SAMPLING_FREQUENCY 10000  // サンプリング周波数（10kHz）
 
 arduinoFFT FFT = arduinoFFT();
+File spiffs_file;
 unsigned int sampling_period_us;
 unsigned long microseconds;
 
@@ -12,7 +14,25 @@ double vImag[SAMPLES]; // 虚数部分（FFTではゼロで初期化）
 
 const int micPin = 34; // マイクのアナログ入力ピン
 
+const char fname[] = "/data1";
+
+void SPIFFSInit(){
+  Serial.println("SPIFFS formatting...");
+  SPIFFS.format();
+ if(!SPIFFS.begin(true)){
+  Serial.println("SPIFFS initialisation failed!");
+  while(1) yield();
+ }
+ SPIFFS.remove(fname);
+ spiffs_file = SPIFFS.open(fname, FILE_WRITE);
+ if(!spiffs_file){
+  Serial.println("File is not available!");
+  while(1) yield();
+ }
+}
+
 void setup() {
+  //SPIFFSInit();
   Serial.begin(115200);
   sampling_period_us = round(1000000 * (1.0 / SAMPLING_FREQUENCY));
 }
@@ -40,8 +60,11 @@ void loop() {
   frequency = vReal[indexAt400Hz];
 
   // 結果を表示
-  Serial.print("400Hzの成分: ");
-  Serial.println(frequency);
+  String output = String(millis()/100) + "," + String(frequency);
+  Serial.println(output);
 
-  delay(1000);  // 次のループまで1秒待機
+  //spiffs_file.println(output);
+  //spiffs_file.flush();
+
+  delay(200);  // 次のループまで1秒待機
 }
