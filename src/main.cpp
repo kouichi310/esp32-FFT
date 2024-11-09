@@ -1,75 +1,56 @@
-#include "arduinoFFT.h"  // FFTライブラリのインクルード
-#include <SPIFFS.h>
-#include <Ticker.h> 
+#include <WiFi.h>
+#include <PubSubClient.h>
 
-#define SAMPLES 512  // サンプル数（2の累乗である必要があります）
-#define SAMPLING_FREQUENCY 10000  // サンプリング周波数（10kHz）
+// WiFi
+const char *ssid = "GL-AR750S-14e"; 
+const char *password = "goodlife";
 
-arduinoFFT FFT = arduinoFFT();
-File spiffs_file;
-unsigned int sampling_period_us;
-unsigned long microseconds;
+// MQTTブローカー  
+const char *mqtt_broker = "192.168.8.228";
+String topic = "mqtt-topics/esp32-" + String(WiFi.macAddress());
+const char *mqtt_username = "emqx-user";
+const char *mqtt_password = "emqx-user-password";
+const int mqtt_port = 1883;
 
-double vReal[SAMPLES]; // 実数部分
-double vImag[SAMPLES]; // 虚数部分（FFTではゼロで初期化）
+WiFiClient espClient;
+PubSubClient client(espClient);
+int tempratureValue;
 
-const int micPin = 34; // マイクのアナログ入力ピン
-
-const char fname[] = "/data1";
-Ticker ticker;
-
-void SPIFFSInit(){
-  Serial.println("SPIFFS formatting...");
-  SPIFFS.format();
- if(!SPIFFS.begin(true)){
-  Serial.println("SPIFFS initialisation failed!");
-  while(1) yield();
- }
- SPIFFS.remove(fname);
- spiffs_file = SPIFFS.open(fname, FILE_WRITE);
- if(!spiffs_file){
-  Serial.println("File is not available!");
-  while(1) yield();
- }
+void init_wifi(){
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.println("Connecting to WiFi..");
+  }
+  Serial.println("Connected to the WiFi network");
+  Serial.println(WiFi.localIP());
 }
 
-void performFFT(){
-  // サンプリング
-  for (int i = 0; i < SAMPLES; i++) {
-    microseconds = micros(); // 現在の時間を取得
-    vReal[i] = analogRead(micPin);  // マイクのアナログ値を取得
-    vImag[i] = 0;  // 虚数部分はゼロに設定
-
-    while (micros() < (microseconds + sampling_period_us)) {
-      // 次のサンプルまで待機
+void init_mqtt(){
+  client.setServer(mqtt_broker, mqtt_port);
+  while (!client.connected()) {
+    String client_id = "esp32-client-";
+    client_id += String(WiFi.macAddress());
+    Serial.println("Connecting to MQTT...");
+    if (client.connect(client_id.c_str(), mqtt_username, mqtt_password)) {
+      Serial.println("connected");
+    } else {
+      Serial.print("failed with state ");
+      Serial.print(client.state());
+      delay(2000);
     }
   }
-
-  // FFTを実行
-  FFT.Windowing(vReal, SAMPLES, FFT_WIN_TYP_HAMMING, FFT_FORWARD);
-  FFT.Compute(vReal, vImag, SAMPLES, FFT_FORWARD);
-  FFT.ComplexToMagnitude(vReal, vImag, SAMPLES);
-
-  // 400Hzの成分を探す
-  double frequency = 0;
-  int indexAt400Hz = (400 * SAMPLES) / SAMPLING_FREQUENCY;  // 400Hzに対応するインデックス
-  frequency = vReal[indexAt400Hz];
-
-  // 結果を表示
-  String output = String(millis()/100) + "," + String(frequency);
-  Serial.println(output);
-
-  //spiffs_file.println(output);
-  //spiffs_file.flush();
 }
 
-void setup() {
-  //SPIFFSInit();
+void setup(){
   Serial.begin(115200);
-  sampling_period_us = round(1000000 * (1.0 / SAMPLING_FREQUENCY));
-  ticker.attach(0.2, performFFT);
+  init_wifi();
+  init_mqtt();
 }
 
-void loop() {
-
+void loop(){
+  tempratureValue = temperatureRead();
+  Serial.println("Temperature: " + String(tempratureValue) + "°C");
+  client.publish(topic.c_str(), ("temp cpu=" + String(tempratureValue)).c_str());
+  sleep(5);
 }
