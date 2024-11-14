@@ -129,7 +129,7 @@ void performFFT()
   i2s_read(I2S_PORT, (char *)samples, BLOCK_SIZE, &bytes_read, portMAX_DELAY);
   i2s_adc_data_scale(flash_write_buff, (uint8_t*)samples, bytes_read);
   for (uint16_t i = 0; i < BLOCK_SIZE; i++) {
-    vReal[i] = samples[i] << 8;
+    vReal[i] = samples[i] << 4;
     vImag[i] = 0.0; //Imaginary part must be zeroed in case of looping to avoid wrong calculations and overflows
   }
 
@@ -140,12 +140,12 @@ void performFFT()
   FFT.ComplexToMagnitude(vReal, vImag, BLOCK_SIZE);
 
   // 400Hzの成分を探す
-  double frequency = 0;
+  int frequency = 0;
   int indexAt400Hz = (1000 * SAMPLES) / SAMPLING_FREQUENCY;  // 1000Hzに対応するインデックス
   frequency = vReal[indexAt400Hz];
 
   // 結果を表示
-  Serial.println(frequency);
+  Serial.println(frequency/1000);
 
   //client.publish(topic.c_str(), ("fft data=" + result).c_str());
   //Serial.println("fft data=" + result);
