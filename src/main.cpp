@@ -3,6 +3,7 @@
 #include <driver/i2s.h>
 #include <arduinoFFT.h>
 #include <Ticker.h>
+#include <Servo.h>
 
 // WiFi
 const char *ssid = "test";
@@ -43,10 +44,15 @@ double vImag[SAMPLES];
 #define I2S_READ_LEN (16 * 1024)
 
 int i2s_read_len = I2S_READ_LEN;
+int cnt = 0;
 size_t bytes_read;
 const int BLOCK_SIZE = 1024;
 int32_t samples[BLOCK_SIZE];
 uint8_t *flash_write_buff = (uint8_t *)calloc(i2s_read_len, sizeof(char));
+
+// Servoモーター
+Servo myservo;
+const int SV_PIN = 23;
 
 // プロトタイプ宣言
 void send_heartbeat();
@@ -63,6 +69,9 @@ void setup()
   init_wifi();
   init_mqtt();
   init_i2s();
+
+  myservo.attach(SV_PIN);
+  myservo.write(0);
 
   ticker_heartbeat.attach(10, send_heartbeat);
   ticker_fft.attach(1, performFFT);
@@ -99,6 +108,17 @@ void performFFT()
   int frequency = 0;
   int indexAt400Hz = (1000 * SAMPLES) / SAMPLING_FREQUENCY;
   frequency = vReal[indexAt400Hz] / 1000;
+
+  // サーボモーターを動かす
+  if (frequency > 40000) {
+    if (cnt == 10) {
+      myservo.write(180);
+    } else {
+      cnt++;
+    }
+  } else {
+    cnt = 0;
+  }
 
   // 結果を表示
   Serial.println(frequency);
