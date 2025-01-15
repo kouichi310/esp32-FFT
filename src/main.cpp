@@ -3,7 +3,7 @@
 #include <driver/i2s.h>
 #include <arduinoFFT.h>
 #include <Ticker.h>
-#include <Servo.h>
+#include <ESP32Servo.h>
 
 // WiFi
 const char *ssid = "test";
@@ -31,13 +31,15 @@ double vImag[SAMPLES];
 
 // I2S
 // esp32mini board
-// #define I2S_WS 4
-// #define I2S_SD 2
-// #define I2S_SCK 3
+#define I2S_WS 4
+#define I2S_SD 2
+#define I2S_SCK 3
 
-#define I2S_WS 25
-#define I2S_SD 21
-#define I2S_SCK 22
+// esp32dev board
+// #define I2S_WS 25
+// #define I2S_SD 21
+// #define I2S_SCK 22
+
 #define I2S_PORT I2S_NUM_0
 #define I2S_SAMPLE_RATE (16000)
 #define I2S_SAMPLE_BITS (16)
@@ -51,8 +53,13 @@ int32_t samples[BLOCK_SIZE];
 uint8_t *flash_write_buff = (uint8_t *)calloc(i2s_read_len, sizeof(char));
 
 // Servoモーター
-Servo myservo;
-const int SV_PIN = 23;
+Servo sg90;
+const int SG90_PIN = 5;
+#define SG90_MIN    500
+#define SG90_MAX    2400
+
+// esp32 dev board
+//const int SV_PIN = 23;
 
 // プロトタイプ宣言
 void send_heartbeat();
@@ -70,8 +77,8 @@ void setup()
   init_mqtt();
   init_i2s();
 
-  myservo.attach(SV_PIN);
-  myservo.write(0);
+  sg90.attach(SG90_PIN, SG90_MIN, SG90_MAX);
+  sg90.write(0);
 
   ticker_heartbeat.attach(10, send_heartbeat);
   ticker_fft.attach(1, performFFT);
@@ -106,13 +113,14 @@ void performFFT()
 
   // 1000Hzの成分を探す
   int frequency = 0;
-  int indexAt400Hz = (1000 * SAMPLES) / SAMPLING_FREQUENCY;
-  frequency = vReal[indexAt400Hz] / 1000;
+  int indexAt1000Hz = (1000 * SAMPLES) / SAMPLING_FREQUENCY;
+  frequency = vReal[indexAt1000Hz] / 1000;
 
   // サーボモーターを動かす
   if (frequency > 40000) {
     if (cnt == 10) {
-      myservo.write(180);
+      sg90.write(180);
+      cnt = 0;
     } else {
       cnt++;
     }
