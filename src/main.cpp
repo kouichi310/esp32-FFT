@@ -5,12 +5,12 @@
 #include <Ticker.h>
 
 // WiFi
-const char *ssid = "GL-AR750S-14e";
-const char *password = "goodlife";
+const char *ssid = "test";
+const char *password = "bbbbbbbb";
 WiFiClient espClient;
 
 // MQTTブローカー
-const char *mqtt_broker = "192.168.8.228";
+const char *mqtt_broker = "192.168.137.1";
 String topic = "mqtt-topics/esp32-" + String(WiFi.macAddress());
 const char *mqtt_username = "emqx-user";
 const char *mqtt_password = "emqx-user-password";
@@ -59,8 +59,8 @@ void setup()
   init_mqtt();
   init_i2s();
 
-  ticker_heartbeat.attach(1, send_heartbeat);
-  ticker_fft.attach(0.2, performFFT);
+  ticker_heartbeat.attach(10, send_heartbeat);
+  ticker_fft.attach(5, performFFT);
 }
 
 void loop()
@@ -70,12 +70,12 @@ void loop()
 
 void send_heartbeat()
 {
-  client.publish(topic.c_str(), "heartbeat");
+  client.publish(topic.c_str(), "heartbeat ping=0");
 }
 
 void performFFT()
 {
-  size_t bytes_read;
+  size_t bytes_read=0;
 
   i2s_read(I2S_PORT, (char *)samples, BLOCK_SIZE, &bytes_read, portMAX_DELAY);
   i2s_adc_data_scale(flash_write_buff, (uint8_t *)samples, bytes_read);
