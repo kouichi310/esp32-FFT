@@ -29,9 +29,14 @@ double vReal[SAMPLES];
 double vImag[SAMPLES];
 
 // I2S
-#define I2S_WS 4
-#define I2S_SD 2
-#define I2S_SCK 3
+// esp32mini board
+// #define I2S_WS 4
+// #define I2S_SD 2
+// #define I2S_SCK 3
+
+#define I2S_WS 25
+#define I2S_SD 21
+#define I2S_SCK 22
 #define I2S_PORT I2S_NUM_0
 #define I2S_SAMPLE_RATE (16000)
 #define I2S_SAMPLE_BITS (16)
@@ -39,7 +44,7 @@ double vImag[SAMPLES];
 
 int i2s_read_len = I2S_READ_LEN;
 size_t bytes_read;
-const int BLOCK_SIZE = 512;
+const int BLOCK_SIZE = 1024;
 int32_t samples[BLOCK_SIZE];
 uint8_t *flash_write_buff = (uint8_t *)calloc(i2s_read_len, sizeof(char));
 
@@ -60,7 +65,7 @@ void setup()
   init_i2s();
 
   ticker_heartbeat.attach(10, send_heartbeat);
-  ticker_fft.attach(5, performFFT);
+  ticker_fft.attach(1, performFFT);
 }
 
 void loop()
