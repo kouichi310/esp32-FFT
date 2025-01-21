@@ -113,7 +113,7 @@ void performFFT()
 
   // 1000Hzの成分を探す
   int frequency = 0;
-  int indexAt1000Hz = (1000 * SAMPLES) / SAMPLING_FREQUENCY;
+  int indexAt1000Hz = (8000 * SAMPLES) / SAMPLING_FREQUENCY;
   frequency = vReal[indexAt1000Hz] / 1000;
 
   // サーボモーターを動かす
@@ -121,6 +121,8 @@ void performFFT()
     if (cnt == 10) {
       sg90.write(180);
       cnt = 0;
+      delay(2000);
+      sg90.write(0);
     } else {
       cnt++;
     }
