@@ -143,10 +143,7 @@ void performFFT()
   }
 
   // // 結果を表示
-  Serial.print(frequency_1000);
-  Serial.print(", ");
-  Serial.print(frequency_8000);
-  Serial.print("\n");
+  Serial.println(frequency_8000 /frequency_1000);
 
   //client.publish(topic.c_str(), ("fft 1000hz=" + String(frequency)).c_str());
 }
