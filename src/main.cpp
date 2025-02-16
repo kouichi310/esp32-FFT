@@ -31,9 +31,9 @@ double vImag[SAMPLES];
 
 // I2S
 // esp32mini board
-#define I2S_WS 4
-#define I2S_SD 2
-#define I2S_SCK 3
+#define I2S_WS 7
+#define I2S_SD 10
+#define I2S_SCK 6
 
 // esp32dev board
 // #define I2S_WS 25
@@ -54,7 +54,7 @@ uint8_t *flash_write_buff = (uint8_t *)calloc(i2s_read_len, sizeof(char));
 
 // Servoモーター
 Servo sg90;
-const int SG90_PIN = 5;
+const int SG90_PIN = D9;
 #define SG90_MIN    500
 #define SG90_MAX    2400
 
@@ -73,14 +73,14 @@ void setup()
 {
   Serial.begin(115200);
 
-  init_wifi();
-  init_mqtt();
+  //init_wifi();
+  //init_mqtt();
   init_i2s();
 
   sg90.attach(SG90_PIN, SG90_MIN, SG90_MAX);
   sg90.write(0);
 
-  ticker_heartbeat.attach(10, send_heartbeat);
+  //ticker_heartbeat.attach(10, send_heartbeat);
   ticker_fft.attach(1, performFFT);
 }
 
@@ -98,7 +98,8 @@ void performFFT()
 {
   size_t bytes_read=0;
 
-  i2s_read(I2S_PORT, (char *)samples, BLOCK_SIZE, &bytes_read, portMAX_DELAY);
+  //i2s_read(I2S_PORT, (char *)samples, BLOCK_SIZE, &bytes_read, portMAX_DELAY);
+  i2s_read(I2S_PORT, (char *)samples, sizeof(samples), &bytes_read, portMAX_DELAY);
   i2s_adc_data_scale(flash_write_buff, (uint8_t *)samples, bytes_read);
   for (uint16_t i = 0; i < BLOCK_SIZE; i++)
   {
@@ -112,28 +113,42 @@ void performFFT()
   FFT.ComplexToMagnitude(vReal, vImag, BLOCK_SIZE);
 
   // 1000Hzの成分を探す
-  int frequency = 0;
-  int indexAt1000Hz = (8000 * SAMPLES) / SAMPLING_FREQUENCY;
-  frequency = vReal[indexAt1000Hz] / 1000;
+  int frequency_8000 = 0, frequency_1000 = 0;
+  int indexAt8000Hz = (8000 * SAMPLES) / SAMPLING_FREQUENCY;
+  int indexAt1000Hz = (1000 * SAMPLES) / SAMPLING_FREQUENCY;
+  frequency_8000 = vReal[indexAt8000Hz] / 1000;
+  frequency_1000 = vReal[indexAt1000Hz] / 1000;
 
   // サーボモーターを動かす
-  if (frequency > 40000) {
-    if (cnt == 10) {
-      sg90.write(180);
-      cnt = 0;
-      delay(2000);
-      sg90.write(0);
-    } else {
-      cnt++;
-    }
-  } else {
-    cnt = 0;
+  // if (frequency_8000 > frequency_1000 * 3 && frequency_8000 > 40000) {
+  //   if (cnt == 3) {
+  //     sg90.write(180);
+  //     cnt = 0;
+  //     Serial.println("find locust!");
+  //     delay(2000);
+  //     sg90.write(0);
+  //   } else {
+  //     cnt++;
+  //     Serial.println(cnt);
+  //   }
+  // } else {
+  //   cnt = 0;
+  // }
+  if (frequency_8000 > frequency_1000 * 3 && frequency_8000 > 40000) {
+    sg90.write(180);
+    Serial.println("find locust!");
+    delay(2000);
+    sg90.write(0);
+    delay(5000);
   }
 
-  // 結果を表示
-  Serial.println(frequency);
+  // // 結果を表示
+  Serial.print(frequency_1000);
+  Serial.print(", ");
+  Serial.print(frequency_8000);
+  Serial.print("\n");
 
-  client.publish(topic.c_str(), ("fft 1000hz=" + String(frequency)).c_str());
+  //client.publish(topic.c_str(), ("fft 1000hz=" + String(frequency)).c_str());
 }
 
 void init_wifi()
@@ -173,15 +188,18 @@ void init_i2s()
 {
   esp_err_t err;
   i2s_config_t i2s_config = {
-      .mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_RX),
-      .sample_rate = I2S_SAMPLE_RATE,
-      .bits_per_sample = i2s_bits_per_sample_t(I2S_SAMPLE_BITS),
-      .channel_format = I2S_CHANNEL_FMT_ONLY_LEFT,
-      .communication_format = i2s_comm_format_t(I2S_COMM_FORMAT_STAND_I2S | I2S_COMM_FORMAT_STAND_MSB),
-      .intr_alloc_flags = 0,
-      .dma_buf_count = 8,
-      .dma_buf_len = 1024,
-      .use_apll = 1};
+    .mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_RX),
+    .sample_rate = 16000,
+    .bits_per_sample = I2S_BITS_PER_SAMPLE_32BIT,  // 32ビットに変更
+    .channel_format = I2S_CHANNEL_FMT_ONLY_LEFT,
+    .communication_format = I2S_COMM_FORMAT_I2S_MSB,
+    .intr_alloc_flags = ESP_INTR_FLAG_LEVEL1,
+    .dma_buf_count = 8,
+    .dma_buf_len = 128,  // バッファ長を倍増
+    .use_apll = false,
+    .tx_desc_auto_clear = false,
+    .fixed_mclk = 0
+  };
 
   err = i2s_driver_install(I2S_PORT, &i2s_config, 0, NULL);
   if (err != ESP_OK)
